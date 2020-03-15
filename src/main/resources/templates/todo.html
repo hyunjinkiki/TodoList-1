@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+    <link rel="stylesheet" type="text/css" href="index.css"></link>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+</head>
+<body>
+<section class="todoapp">
+    <header class="header">
+        <h1>todos</h1>
+        <input class="new-todo"
+               autofocus
+               placeholder="What needs to be done?"
+               @keyup.enter="addTodo">
+    </header>
+    <section class="main">
+        <input id="toggle-all" class="toggle-all" type="checkbox">
+        <label for="toggle-all"></label>
+        <ul class="todo-list">
+            <li v-for="todo in filteredTodo"
+                :key="todo.id"
+                class="todo"
+                :class="{ completed: todo.completed, editing: todo == editedTodo }">
+                <div class="view">
+                    <input class="toggle" type="checkbox" v-model="todo.completed">
+                    <label >{{ todo.title }}</label>
+                    <button class="destroy" @click.prevent="removeTodo(todo)"></button>
+                </div>
+                <input class="edit"
+                       type="text"
+                >
+            </li>
+        </ul>
+    </section>
+    <footer class="footer">
+    <span class="todo-count">
+      <strong></strong>
+    </span>
+        <ul class="filters" lass="filters">
+            <li><button @click="changeVisibility('all')">All</button></li>
+            <li><button @click="changeVisibility('active')">Active</button></li>
+            <li><button @click="changeVisibility('completed')">Completed</button></li>
+        </ul>
+        <button class="clear-completed" >
+            Clear completed
+        </button>
+    </footer>
+</section>
+<script>
+
+    var instance = axios.create({
+        baseURL: 'http://localhost:8080'
+    });
+
+    var Todo = function(title, id) {
+    	var index = -1;
+    	return function (title, id){
+    	
+    	this.title = title;
+    	this.id = id;
+
+    	this.completed = false;
+    	return this;
+    	}
+    	}();
+
+
+
+    var vm = new Vue({
+        el: '.todoapp',
+        data: {
+            todos: [],
+            visibility: 'all'
+        },
+        computed: {
+            filteredTodo: function () {
+                var type = this.visibility;
+                if(type === 'all') {
+                    return this.todos;
+                } else if(type === 'active') {
+                    return this.todos.filter(function (todo) {
+                        return todo.completed === false;
+                    });
+                } else if (type === 'completed'){
+                    return this.todos.filter(function (todo) {
+                        return todo.completed === true;
+                    });
+                }
+            }
+        },
+        methods : {
+            addTodo: function (event) {
+                this.todos.push(new Todo(event.target.value));
+                event.target.value = '';
+
+
+            },
+            removeTodo: function (todo) {
+               this.todos.splice(this.todos.indexOf(todo), 1); 
+                
+                instance.delete('/todo/' + todo.id)
+                	.then((response) => {
+		                if (response.status === 200) { 
+		                	this.todos.splice(this.todos.indexOf(todo), 1);
+		                }
+		                })
+		                .catch((err) => {
+		                console.log('error')
+		                });
+               
+            	},
+            changeVisibility: function (type) {
+                this.visibility = type;
+            },
+        }
+    });
+
+    instance.get('/todolist_internal')
+        .then((response) => {
+			console.log(response)
+            var todoList = response.data.slice(0, 10);
+            var newEms = todoList.map(function(todo){
+               return new Todo(todo.content, todo.id);
+            });
+            vm.todos = newEms;
+        });
+</script>
+</body>
+</html>
